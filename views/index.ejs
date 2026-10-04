@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Live Locator</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="/stylesheets/style.css">
+</head>
+<body>
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Floating Glassmorphic HUD -->
+    <div class="hud-panel">
+        <div class="hud-header">
+            <div class="status-indicator">
+                <span class="live-dot" id="live-dot"></span>
+                <span class="status-text" id="status-text">Connecting...</span>
+            </div>
+            <div class="active-badge" id="user-count-badge">
+                <span class="badge-icon">👥</span>
+                <span id="user-count-text">1 device online</span>
+            </div>
+        </div>
+
+        <div class="hud-legend">
+            <div class="legend-item">
+                <span class="legend-beacon self-sample"></span>
+                <span>You (This Device)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-beacon other-sample"></span>
+                <span>Other People</span>
+            </div>
+        </div>
+
+        <div class="hud-actions">
+            <button id="btn-fit-all" class="hud-btn primary-btn" title="Zoom to fit everyone">
+                <span class="btn-icon">🎯</span> Fit All People
+            </button>
+            <button id="btn-focus-me" class="hud-btn secondary-btn" title="Center on your device">
+                <span class="btn-icon">📍</span> My Location
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>
+    <script src="/javascripts/script.js"></script>
+</body>
+</html>
