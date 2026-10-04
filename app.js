@@ -10,33 +10,60 @@ const io = socketio(server);
 app.set("view engine", "ejs")
 app.use(express.static(path.join(__dirname , "public" )));
 
-// Store all connected users and their locations
+// Store all connected users keyed by their persistent deviceId
+// Format: { [deviceId]: { id: deviceId, socketId, latitude, longitude, accuracy, lastSeen } }
 const users = {};
+const socketToDevice = {};
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+  console.log("Socket connected:", socket.id);
 
-  // Send new user all existing users' data
+  // Send new user all currently active devices
   socket.emit("all-users", users);
 
+  // Register deviceId on connection
+  socket.on("register-device", (deviceId) => {
+    if (!deviceId) return;
+    socketToDevice[socket.id] = deviceId;
+    if (users[deviceId]) {
+      users[deviceId].socketId = socket.id;
+    }
+  });
+
   socket.on("send-location", (data) => {
-    // Store user location on server
-    users[socket.id] = { id: socket.id, ...data };
+    const { deviceId, latitude, longitude, accuracy } = data;
+    if (!deviceId) return;
+
+    socketToDevice[socket.id] = deviceId;
     
-    // Broadcast location to all users
-    io.emit("receive-location", {
-      id: socket.id,
-      ...data,
-    });
+    // Store user location keyed by persistent deviceId
+    users[deviceId] = {
+      id: deviceId,
+      socketId: socket.id,
+      latitude,
+      longitude,
+      accuracy,
+      lastSeen: Date.now()
+    };
+    
+    // Broadcast location to all connected clients
+    io.emit("receive-location", users[deviceId]);
   });
 
   socket.on("disconnect", () => {
-    // Remove user from server storage
-    delete users[socket.id];
+    const deviceId = socketToDevice[socket.id];
+    delete socketToDevice[socket.id];
     
-    // Notify all users that this user disconnected
-    io.emit("user-disconnected", socket.id);
-    console.log("User disconnected:", socket.id);
+    if (deviceId) {
+      // 4-second grace period: if the device reconnected on a new socket, don't remove it
+      setTimeout(() => {
+        if (users[deviceId] && users[deviceId].socketId === socket.id) {
+          delete users[deviceId];
+          io.emit("user-disconnected", deviceId);
+          console.log("Device officially disconnected:", deviceId);
+        }
+      }, 4000);
+    }
   });
 });
 
