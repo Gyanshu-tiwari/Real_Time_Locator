@@ -24,8 +24,9 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 // In-memory markers storage { [socketId]: L.marker }
 const markers = {};
+const accuracyCircles = {};
 let currentPosition = null;
-let hasSentInitial = false;
+let lastSentTime = 0;
 
 // =========================================
 // Custom Marker Icons (DivIcons)
@@ -62,19 +63,53 @@ function createOtherIcon(id) {
     });
 }
 
-// Generate popup content
-function createPopupContent(id, lat, lng) {
+// Generate popup content with accuracy badge
+function createPopupContent(id, lat, lng, accuracy) {
     const isSelf = (id === socket.id);
     const title = isSelf ? "📍 You (This Device)" : `👤 Device #${id.slice(-4).toUpperCase()}`;
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     
+    let accuracyBadge = '';
+    if (accuracy !== undefined && accuracy !== null && !isNaN(accuracy)) {
+        const roundedAcc = Math.round(accuracy);
+        if (roundedAcc <= 25) {
+            accuracyBadge = `<div class="accuracy-badge high">🎯 Exact GPS (±${roundedAcc}m)</div>`;
+        } else if (roundedAcc <= 100) {
+            accuracyBadge = `<div class="accuracy-badge medium">📍 Good (±${roundedAcc}m)</div>`;
+        } else {
+            const displayStr = roundedAcc > 1000 ? `${(roundedAcc / 1000).toFixed(1)}km` : `${roundedAcc}m`;
+            accuracyBadge = `<div class="accuracy-badge low">⚠️ Approx / Wi-Fi (±${displayStr})</div>`;
+        }
+    }
+
     return `
         <div class="popup-card">
             <div class="popup-title">${title}</div>
             <div class="popup-coords">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+            ${accuracyBadge}
             <div class="popup-time">Last update: ${timestamp}</div>
         </div>
     `;
+}
+
+// Render or update accuracy circle on the map
+function updateAccuracyCircle(id, lat, lng, accuracy, isSelf) {
+    if (!accuracy || isNaN(accuracy)) return;
+    const color = isSelf ? '#0284c7' : '#ec4899';
+
+    if (accuracyCircles[id]) {
+        accuracyCircles[id].setLatLng([lat, lng]);
+        accuracyCircles[id].setRadius(accuracy);
+    } else {
+        accuracyCircles[id] = L.circle([lat, lng], {
+            radius: accuracy,
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.1,
+            weight: 1.5,
+            interactive: false
+        }).addTo(map);
+    }
 }
 
 // =========================================
@@ -136,7 +171,9 @@ socket.on("connect", () => {
     if (markers[socket.id]) {
         markers[socket.id].setIcon(createSelfIcon());
         const latLng = markers[socket.id].getLatLng();
-        markers[socket.id].setPopupContent(createPopupContent(socket.id, latLng.lat, latLng.lng));
+        const acc = currentPosition ? currentPosition.accuracy : null;
+        markers[socket.id].setPopupContent(createPopupContent(socket.id, latLng.lat, latLng.lng, acc));
+        updateAccuracyCircle(socket.id, latLng.lat, latLng.lng, acc, true);
     }
 });
 
@@ -156,10 +193,13 @@ socket.on("all-users", (allUsers) => {
             const icon = isSelf ? createSelfIcon() : createOtherIcon(userId);
             
             const marker = L.marker([userData.latitude, userData.longitude], { icon })
-                .bindPopup(createPopupContent(userId, userData.latitude, userData.longitude))
+                .bindPopup(createPopupContent(userId, userData.latitude, userData.longitude, userData.accuracy))
                 .addTo(map);
 
             markers[userId] = marker;
+            if (userData.accuracy) {
+                updateAccuracyCircle(userId, userData.latitude, userData.longitude, userData.accuracy, isSelf);
+            }
             addedCount++;
         }
     }
@@ -172,7 +212,7 @@ socket.on("all-users", (allUsers) => {
 
 // Real-time location broadcast received
 socket.on("receive-location", (data) => {
-    const { id, latitude, longitude } = data;
+    const { id, latitude, longitude, accuracy } = data;
     const isSelf = (id === socket.id);
     const isNewUser = !markers[id];
 
@@ -180,10 +220,11 @@ socket.on("receive-location", (data) => {
         // Create new marker with distinct icon for self vs others
         const icon = isSelf ? createSelfIcon() : createOtherIcon(id);
         const marker = L.marker([latitude, longitude], { icon })
-            .bindPopup(createPopupContent(id, latitude, longitude))
+            .bindPopup(createPopupContent(id, latitude, longitude, accuracy))
             .addTo(map);
 
         markers[id] = marker;
+        updateAccuracyCircle(id, latitude, longitude, accuracy, isSelf);
         updateUserCount();
 
         if (!isSelf) {
@@ -193,9 +234,10 @@ socket.on("receive-location", (data) => {
         // Auto-fit bounds so the newly joined person is immediately visible on screen
         fitAllTrackers(true);
     } else {
-        // Update existing marker position smoothly
+        // Update existing marker position and accuracy smoothly
         markers[id].setLatLng([latitude, longitude]);
-        markers[id].setPopupContent(createPopupContent(id, latitude, longitude));
+        markers[id].setPopupContent(createPopupContent(id, latitude, longitude, accuracy));
+        updateAccuracyCircle(id, latitude, longitude, accuracy, isSelf);
     }
 });
 
@@ -204,26 +246,35 @@ socket.on("user-disconnected", (id) => {
     if (markers[id]) {
         map.removeLayer(markers[id]);
         delete markers[id];
-        updateUserCount();
-        showToast(`🔌 Device #${id.slice(-4).toUpperCase()} disconnected`);
-        fitAllTrackers(true);
     }
+    if (accuracyCircles[id]) {
+        map.removeLayer(accuracyCircles[id]);
+        delete accuracyCircles[id];
+    }
+    updateUserCount();
+    showToast(`🔌 Device #${id.slice(-4).toUpperCase()} disconnected`);
+    fitAllTrackers(true);
 });
 
 // =========================================
 // Geolocation Watching & Emission
 // =========================================
+function sendCurrentLocation() {
+    if (!currentPosition) return;
+    const { latitude, longitude, accuracy } = currentPosition;
+    socket.emit("send-location", { latitude, longitude, accuracy });
+    lastSentTime = Date.now();
+}
+
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition(
         (position) => {
             currentPosition = position.coords;
-            const { latitude, longitude } = position.coords;
+            const now = Date.now();
 
-            // Emit immediately on first detection rather than waiting 5s
-            if (!hasSentInitial) {
-                hasSentInitial = true;
-                socket.emit("send-location", { latitude, longitude });
-                console.log("Initial position sent:", { latitude, longitude });
+            // Emit immediately if first time or if more than 2 seconds since last emit
+            if (now - lastSentTime > 2000) {
+                sendCurrentLocation();
             }
         },
         (error) => {
@@ -235,21 +286,18 @@ if (navigator.geolocation) {
             showToast("⚠️ Location permission denied or requires HTTPS");
         },
         {
-            enableHighAccuracy: true,
-            maximumAge: 0,
-            timeout: 10000
+            enableHighAccuracy: true, // Forces hardware GPS on mobile devices
+            maximumAge: 0,            // Never use cached stale coordinates
+            timeout: 15000            // Generous timeout for satellite lock
         }
     );
 } else {
     alert("Geolocation is not supported by your browser");
 }
 
-// Periodic update every 5 seconds
+// Periodic update every 5 seconds (heartbeat)
 setInterval(() => {
-    if (currentPosition) {
-        const { latitude, longitude } = currentPosition;
-        socket.emit("send-location", { latitude, longitude });
-    }
+    sendCurrentLocation();
 }, 5000);
 
 // =========================================
