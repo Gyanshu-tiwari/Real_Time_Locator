@@ -296,13 +296,11 @@ html, body {
    Leaflet Popup & Tooltip Custom Overrides
    ========================================= */
 .leaflet-popup-content-wrapper {
-    background: rgba(15, 23, 42, 0.92) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    background: #0f172a !important;
     color: #f1f5f9 !important;
     border-radius: 14px !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5) !important;
     padding: 2px !important;
 }
 
@@ -313,8 +311,8 @@ html, body {
 }
 
 .leaflet-popup-tip {
-    background: rgba(15, 23, 42, 0.92) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: #0f172a !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
 }
 
 .popup-card {

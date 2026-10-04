@@ -4,13 +4,27 @@ A high-performance real-time location tracking web application built with **Node
 
 ---
 
+## 📸 Interface Previews
+
+### 💻 Desktop Display
+![Desktop Live Tracking Preview](public/images/desktop-preview.png)
+
+### 📱 Mobile Responsive Display
+<p align="center">
+  <img src="public/images/mobile-preview.png" alt="Mobile Live Tracking Preview" width="360" style="border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);">
+</p>
+
+---
+
 ## ✨ Features
 
 - **🔴 Real-Time Bidirectional Tracking**: Powered by WebSockets (Socket.IO) for sub-second location synchronization.
 - **📍 Distinguish "You" vs "Others"**:
   - **You (This Device)**: Electric cyan/blue GPS beacon with a continuous radar pulse animation.
-  - **Other People**: Vibrant neon-rose pin with personalized short device ID badges (e.g., `#A9B2`).
+  - **Other People**: Vibrant neon-rose pin with personalized short device ID badges (e.g., `#B74E`).
+- **📏 Live Distance Measurement**: Real-time distance calculation between devices (`📏 621 m away from you`).
 - **🎯 Dynamic Zoom & Auto-Framing**: Automatically adjusts map bounds (`fitBounds`) with padding so all active devices remain visible regardless of distance.
+- **🛡️ GPS Jitter & Drift Filter**: Intelligent deadband noise suppression preventing stationary devices from wandering.
 - **🎛️ Glassmorphic HUD & Controls**:
   - Live connection status indicator (Connecting / Live / Blocked).
   - Real-time online devices counter (`X devices online`).
@@ -18,9 +32,9 @@ A high-performance real-time location tracking web application built with **Node
   - **`📍 My Location`**: Smooth fly-to animation to street-level zoom on your current device.
   - Built-in visual map legend.
 - **🔔 Interactive Popups & Toast Notifications**:
-  - Clicking any pin displays high-precision coordinates and last update timestamp.
+  - Displays high-precision coordinates, accuracy radius (GPS vs Wi-Fi), and distance badge.
   - Automatic toasts when devices join or disconnect.
-- **📱 Fully Responsive**: Optimized for both desktop displays and mobile touchscreens.
+- **📱 Fully Responsive**: Custom layout adapted for desktop displays and thumb-friendly mobile touchscreens.
 
 ---
 
@@ -40,6 +54,9 @@ Real Time Locator/
 ├── app.js                   # Express server & Socket.IO event handler
 ├── package.json             # Dependencies and project scripts
 ├── public/
+│   ├── images/
+│   │   ├── desktop-preview.png # Desktop interface screenshot
+│   │   └── mobile-preview.png  # Mobile responsive screenshot
 │   ├── javascripts/
 │   │   └── script.js        # Leaflet map logic, custom DivIcons & socket events
 │   └── stylesheets/
